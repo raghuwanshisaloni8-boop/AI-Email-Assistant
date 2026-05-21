@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Email Assistant</title>
+
+<style>
+:root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --text:#fff;
+    --user:#3b82f6;
+    --ai:#111827;
+    --border:rgba(255,255,255,0.1);
+}
+
+.light{
+    --bg:#f1f5f9;
+    --card:#ffffff;
+    --text:#000;
+    --user:#2563eb;
+    --ai:#e2e8f0;
+    --border:#ddd;
+}
+
+body{
+    margin:0;
+    font-family:Segoe UI;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+}
+
+.container{
+    width:95%;
+    max-width:650px;
+    background:var(--card);
+    border-radius:18px;
+    padding:15px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:5px 0;
+}
+
+.chat{
+    height:380px;
+    overflow-y:auto;
+    padding:10px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin-top:10px;
+    scroll-behavior:smooth;
+}
+
+.msg{
+    padding:12px;
+    margin:10px 0;
+    border-radius:12px;
+    max-width:80%;
+    white-space:pre-wrap;
+    animation:fadeIn 0.3s ease-in;
+}
+
+.user{
+    background:linear-gradient(135deg,#3b82f6,#2563eb);
+    color:#fff;
+    margin-left:auto;
+}
+
+.ai{
+    background:var(--ai);
+}
+
+textarea,select{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border-radius:10px;
+    border:none;
+    outline:none;
+    background:rgba(255,255,255,0.05);
+    color:var(--text);
+}
+
+button{
+    width:100%;
+    margin-top:10px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+    color:white;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+button:hover{
+    transform:scale(1.02);
+}
+
+.typing{
+    font-style:italic;
+    opacity:0.7;
+}
+
+@keyframes fadeIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+}
+
+.loader{
+    font-size:13px;
+    opacity:0.7;
+    margin-top:5px;
+}
+
+/* ✅ NEW BUTTON ROW */
+.row{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+}
+
+.small-btn{
+    flex:1;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:13px;
+    background:#334155;
+    color:white;
+}
+.small-btn:hover{
+    opacity:0.8;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="topbar">
+    <h3>📧 AI Email Assistant</h3>
+    <button onclick="toggleTheme()">🌙</button>
+</div>
+
+<div class="chat" id="chat"></div>
+
+<!-- ✅ QUICK ACTIONS (NEW) -->
+<div class="row">
+    <button class="small-btn" onclick="quickFill('refund')">Refund</button>
+    <button class="small-btn" onclick="quickFill('job')">Job</button>
+    <button class="small-btn" onclick="quickFill('support')">Support</button>
+</div>
+
+<textarea id="email" placeholder="Write your email..."></textarea>
+
+<select id="tone">
+    <option>Professional</option>
+    <option>Friendly</option>
+    <option>Formal</option>
+</select>
+
+<!-- ✅ GEMINI MODEL SELECTOR (NEW) -->
+<select id="model">
+    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+</select>
+
+<button onclick="generate()">Generate Reply</button>
+
+<!-- ✅ ACTION BUTTONS (NEW) -->
+<div class="row" id="actions" style="display:none;">
+    <button class="small-btn" onclick="copyReply()">Copy Reply</button>
+    <button class="small-btn" onclick="retry()">Retry</button>
+</div>
+
+</div>
+
+<script>
+
+const API_URL = "https://email-reply-backend-anc4.onrender.com/generate";
+
+function addMsg(text,type){
+    let div=document.createElement("div");
+    div.className="msg "+type;
+    div.innerText=text;
+    document.getElementById("chat").appendChild(div);
+    document.getElementById("chat").scrollTop=999999;
+}
+
+function typeText(el,text,i=0){
+    if(i<text.length){
+        el.innerHTML+=text.charAt(i);
+        setTimeout(()=>typeText(el,text,i+1),10);
+    }
+}
+
+function toggleTheme(){
+    document.body.classList.toggle("light");
+}
+
+function getSubject(email){
+    email=email.toLowerCase();
+    if(email.includes("refund")) return "Re: Refund Request";
+    if(email.includes("job")) return "Re: Job Opportunity";
+    if(email.includes("support")) return "Re: Support Query";
+    return "Re: Your Email";
+}
+
+/* ✅ QUICK FILL */
+function quickFill(type){
+    let email=document.getElementById("email");
+
+    if(type==="refund")
+        email.value="I want a refund for my order";
+
+    if(type==="job")
+        email.value="I am interested in job opportunity";
+
+    if(type==="support")
+        email.value="I need support regarding my account";
+}
+
+/* ✅ COPY */
+function copyReply(){
+    let msgs=document.querySelectorAll(".ai");
+    let last=msgs[msgs.length-1];
+    if(last){
+        navigator.clipboard.writeText(last.innerText);
+        alert("Copied!");
+    }
+}
+
+/* ✅ RETRY */
+function retry(){
+    generate();
+}
+
+/* GENERATE */
+async function generate(){
+
+let email=document.getElementById("email").value;
+let tone=document.getElementById("tone").value;
+let model=document.getElementById("model").value;
+
+if(!email.trim()) return;
+
+addMsg(email,"user");
+
+let typing=document.createElement("div");
+typing.className="msg ai typing";
+typing.innerText="Typing...";
+document.getElementById("chat").appendChild(typing);
+
+try{
+
+const res=await fetch(API_URL,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email,tone,model})
+});
+
+const data=await res.json();
+
+typing.remove();
+
+let reply =
+data?.candidates?.[0]?.content?.parts
+?.map(p => p.text)
+?.join("") ||
+"No response";
+
+let subject=getSubject(email);
+
+let final="📩 Subject: "+subject+"\n\n"+reply;
+
+let div=document.createElement("div");
+div.className="msg ai";
+document.getElementById("chat").appendChild(div);
+
+typeText(div,final);
+
+document.getElementById("email").value="";
+
+/* show actions */
+document.getElementById("actions").style.display="flex";
+
+}catch(err){
+typing.innerText="❌ Backend Error";
+console.log(err);
+}
+
+}
+
+</script>
+
+</body>
+</html>
